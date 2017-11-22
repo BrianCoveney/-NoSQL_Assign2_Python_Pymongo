@@ -35,15 +35,11 @@ def most_popular_cuisine(db):
     # 1.4. Trigger the query to the MongoDB and convert the result to a list of documents
     popular_cuisines = db.restaurants.aggregate(pipeline1)
 
-    # Set string equal to "_id" which is {'Cuisine': 'American '}
     cuisine_type = ""
     cuisine_total = 0
     for c in popular_cuisines:
         cuisine_type = c["_id"]
         cuisine_total = c["total"]
-
-    print("Cuisine type", cuisine_type)
-    print("Cuisine total", cuisine_total)
 
     popular_cuisines = cuisine_type
 
@@ -53,7 +49,6 @@ def most_popular_cuisine(db):
     pipeline2.append(command_a)
     total_rest = db.restaurants.aggregate(pipeline2)
 
-    # Set int equal to "count" which is 50718
     total_num_rest = 0
     for r in total_rest:
         total_num_rest = r["count"]
@@ -62,6 +57,7 @@ def most_popular_cuisine(db):
     # 3. Extract the name of the cuisine we are looking for (and its percentage of restaurants)
     most_popular = popular_cuisines
 
+    # calculate the percentage
     cuisine_ratio = (cuisine_total * 100) / total_num_rest
 
     total = str(round(cuisine_ratio, 1))  # 24.4 percent
@@ -146,18 +142,9 @@ def my_main():
     client = pymongo.MongoClient('localhost', 27000)
     db = client.test
 
-    # pipeline1 = []
-    # pipeline1.append({"$group": {"_id": {"cuisine": "$cuisine"}, "total": {"$sum": 1}}})
-    # pipeline1.append({"$sort" : { "total" : -1 } })
-    # pipeline1.append({ "$limit" : 1 })
-    # res = list(db.restaurants.aggregate(pipeline1))
-    # print(res)
-
-
-
     # 1. What is the kind of cuisine with more restaurants in the city?
     (cuisine, ratio_cuisine) = most_popular_cuisine(db)
-    print ("1. The kind of cuisine with more restaurants in the city is", cuisine, "(with a", ratio_cuisine, "percentage of restaurants of the city)")
+    print("1. The kind of cuisine with more restaurants in the city is", cuisine, "(with a", ratio_cuisine, "percentage of restaurants of the city)")
     #
     # # 2. Which is the borough with smaller ratio of restaurants of this kind of cuisine?
     # (borough, ratio_borough) = ratio_per_borough_and_cuisine(db, cuisine)
