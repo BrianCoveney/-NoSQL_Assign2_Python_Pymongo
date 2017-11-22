@@ -21,7 +21,7 @@ def most_popular_cuisine(db):
     pipeline1 = []
 
     # 1.1. Group the restaurants by their cuisine style, counting how many are there per group
-    command_1 = {"$group": {"_id": {"Cuisine": "$cuisine"}, "total": {"$sum": 1}}}
+    command_1 = {"$group": {"_id": "$cuisine", "total": {"$sum": 1}}}
     pipeline1.append(command_1)
 
     # 1.2. Sort the documents by decreasing order
@@ -37,9 +37,13 @@ def most_popular_cuisine(db):
 
     # Set string equal to "_id" which is {'Cuisine': 'American '}
     cuisine_type = ""
+    cuisine_total = 0
     for c in popular_cuisines:
         cuisine_type = c["_id"]
+        cuisine_total = c["total"]
+
     print("Cuisine type", cuisine_type)
+    print("Cuisine total", cuisine_total)
 
     popular_cuisines = cuisine_type
 
@@ -57,7 +61,10 @@ def most_popular_cuisine(db):
 
     # 3. Extract the name of the cuisine we are looking for (and its percentage of restaurants)
     most_popular = popular_cuisines
-    total = 0
+
+    cuisine_ratio = (cuisine_total * 100) / total_num_rest
+
+    total = str(round(cuisine_ratio, 1))  # 24.4 percent
 
     # 4. Return this cuisine name
     return most_popular, total
