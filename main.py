@@ -15,6 +15,7 @@ import pymongo
 # Global Variables
 cuisine_name = ""
 borough_name = ""
+zipcode4 = ""
 
 # ------------------------------------------
 # FUNCTION 1: most_popular_cuisine
@@ -93,7 +94,7 @@ def ratio_per_borough_and_cuisine(db, cuisine):
     # 2. Second pipeline: Query the collection to get how many restaurants (of the kind of cuisine we are looking for) are there per borough
     pipeline2 = []
 
-    command_2a = { "$match" : { "cuisine" : cuisine_name } }
+    command_2a = { "$match" : { "cuisine" : cuisine } }
     pipeline2.append(command_2a)
 
     command_2b = { "$project" : { "_id" : 0, "Borough" : "$borough", "Cuisine" : {"$cond" : [ {"$eq" : ["$cuisine", cuisine_name ] }, 1, 0]} } }
@@ -132,7 +133,7 @@ def ratio_per_zipcode(db, cuisine, borough):
     # 1. First pipeline: Query the collection to get the biggest five zipcodes of the borough (in which we are going to open the new restaurant)
     pipeline1 = []
 
-    command_1a = { "$match" : {  "borough" : borough_name}}
+    command_1a = { "$match" : {  "borough" : borough}}
     pipeline1.append(command_1a)
 
     command_1b = { "$group" : { "_id" : "$address.zipcode", "total" : { "$sum" : 1 } } }
@@ -146,7 +147,7 @@ def ratio_per_zipcode(db, cuisine, borough):
 
     biggest_five_zipcodes = db.restaurants.aggregate(pipeline1)
 
-    zipcode4 = ""
+    global zipcode4
     for z in biggest_five_zipcodes:
         if z["_id"] == "10305":
             zipcode4 = z["_id"]
@@ -155,7 +156,7 @@ def ratio_per_zipcode(db, cuisine, borough):
     # 2. Second pipeline: Query the collection to get how many zipcodes of the borough include restaurants of the kind of cuisine we are looking for
     pipeline2 = []
 
-    command_2a = { "$match" : {  "borough" : borough_name, "address.zipcode" : zipcode4 } }
+    command_2a = { "$match" : {  "borough" : borough, "address.zipcode" : zipcode4 } }
     pipeline2.append(command_2a)
 
     command_2b = { "$group" : { "_id" : "$address.zipcode", "total" : { "$sum" : 1 } } }
@@ -177,7 +178,7 @@ def ratio_per_zipcode(db, cuisine, borough):
     # Plese note that the documents of first and second query might not fully match. That is, there might be more than 5 zipcodes in the second query. Also, it might be the unlikely case in which, for one of the biggest zipcodes of the borough, there is no restaurant (of the kind of cuisine we are looking for) at all.
     pipeline3 = []
 
-    command_3a = { "$match" : {  "borough" : borough_name, "cuisine" : cuisine_name, "address.zipcode" : zipcode4 } }
+    command_3a = { "$match" : {  "borough" : borough, "cuisine" : cuisine, "address.zipcode" : zipcode4 } }
     pipeline3.append(command_3a)
 
     command_3b = { "$group" : { "_id" : "$address.zipcode", "total" : { "$sum" : 1 } } }
@@ -211,10 +212,31 @@ def best_restaurants(db, cuisine, borough, zipcode):
     # Filter the restaurants to consider only these ones with more than 4 or more reviews.
     pipeline1 = []
 
+    command_1a = { "$match" : { "borough" : borough, "cuisine" : cuisine, "address.zipcode" : zipcode } }
+    pipeline1.append(command_1a)
+
+    command_1b = { "$project" : {"_id" :0, "name" : 1, "AvgScore" : { "$avg" : "$grades.score" }, "SizeGrades": {"$size": "$grades.grade"}} }
+    pipeline1.append(command_1b)
+
+    command_1c = { "$match": {"SizeGrades": {"$gt" : 4}} }
+    pipeline1.append(command_1c)
+
+    command_1d = { "$sort" : { "AvgScore" : -1 } }
+    pipeline1.append(command_1d)
+
+    top_rest = db.restaurants.aggregate(pipeline1)
 
     # 2. Format the result to a list of pairs
     name = []
     reviews = []
+
+    for t in top_rest:
+        reviews.append(t["AvgScore"])
+        name.append(t["name"])
+
+    print("Restaurant name: ", name[0], "| Review", reviews[0])
+    print("Restaurant name: ", name[1], "| Review", reviews[1])
+    print("Restaurant name: ", name[2], "| Review", reviews[2])
 
 
     # 3. Return the selected restaurant names and average review scores
@@ -231,18 +253,19 @@ def my_main():
     # 1. What is the kind of cuisine with more restaurants in the city?
     (cuisine, ratio_cuisine) = most_popular_cuisine(db)
     print("1. The kind of cuisine with more restaurants in the city is", cuisine, "(with a", ratio_cuisine, "percentage of restaurants of the city)")
-    #
+
     # # 2. Which is the borough with smaller ratio of restaurants of this kind of cuisine?
-    (borough, ratio_borough) = ratio_per_borough_and_cuisine(db, cuisine)
+    (borough, ratio_borough) = ratio_per_borough_and_cuisine(db, cuisine_name)
     print ("2. The borough with smaller ratio of restaurants of this kind of cuisine is", borough, "(with a", ratio_borough, "percentage of restaurants of this kind)")
-    #
+
     # 3. Which of the 5 biggest zipcodes of the borough has a smaller ratio of restaurants of the cuisine we are looking for?
-    (zipcode, ratio_zipcode) = ratio_per_zipcode(db, cuisine, borough)
+    (zipcode, ratio_zipcode) = ratio_per_zipcode(db, cuisine_name, borough_name)
     print ("3. The zipcode of the borough with smaller ratio of restaurants of this kind of cuisine is zipcode =", zipcode, "(with a", ratio_zipcode, "percentage of restaurants of this kind)")
-    #
-    # # 4. Which are the best 3 restaurants (of the kind of cuisine we are looking for) of our zipcode?
-    # (best, reviews) = best_restaurants(db, cuisine, borough, zipcode)
-    # # print ("4. The best three restaurants (of this kind of couisine) at these zipcode are:", best[0], "(with average reviews score of", reviews[0], "),", best[1], "(with average reviews score of", reviews[1], "),", best[2], "(with average reviews score of", reviews[2], ")")
+
+    # 4. Which are the best 3 restaurants (of the kind of cuisine we are looking for) of our zipcode?
+    (best, reviews) = best_restaurants(db, cuisine_name, borough_name, zipcode4)
+    print ("4. The best three restaurants (of this kind of couisine) at these zipcode are:", best[0], "(with average reviews score of", reviews[0], "),", best[1], "(with average reviews score of", reviews[1], "),", best[2], "(with average reviews score of", reviews[2], ")")
+
 
 # ---------------------------------------------------------------
 #           PYTHON EXECUTION
