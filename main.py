@@ -234,11 +234,6 @@ def best_restaurants(db, cuisine, borough, zipcode):
         reviews.append(t["AvgScore"])
         name.append(t["name"])
 
-    print("Restaurant name: ", name[0], "| Review", reviews[0])
-    print("Restaurant name: ", name[1], "| Review", reviews[1])
-    print("Restaurant name: ", name[2], "| Review", reviews[2])
-
-
     # 3. Return the selected restaurant names and average review scores
     return name, reviews
 
@@ -264,7 +259,9 @@ def my_main():
 
     # 4. Which are the best 3 restaurants (of the kind of cuisine we are looking for) of our zipcode?
     (best, reviews) = best_restaurants(db, cuisine_name, borough_name, zipcode4)
-    print ("4. The best three restaurants (of this kind of couisine) at these zipcode are:", best[0], "(with average reviews score of", reviews[0], "),", best[1], "(with average reviews score of", reviews[1], "),", best[2], "(with average reviews score of", reviews[2], ")")
+    print ("4. The best three restaurants (of this kind of couisine) at these zipcode are:\n\t-",
+           best[0], "(with average reviews score of", reviews[0], "),\n\t-",
+           best[1], "(with average reviews score of", reviews[1], "),\n\t-", best[2], "(with average reviews score of", reviews[2], ")")
 
 
 # ---------------------------------------------------------------
