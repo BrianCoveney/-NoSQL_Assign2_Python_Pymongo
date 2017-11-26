@@ -14,6 +14,7 @@ import pymongo
 
 # Global Variables
 cuisine_name = ""
+borough_name = ""
 
 # ------------------------------------------
 # FUNCTION 1: most_popular_cuisine
@@ -78,7 +79,7 @@ def ratio_per_borough_and_cuisine(db, cuisine):
     rest_per_boro = db.restaurants.aggregate(pipeline1)
 
     num_rest_in_boro = 0
-    borough_name = ""
+    global borough_name
     for b in rest_per_boro:
         # print(b["_id"], b["count"]) # prints each borough and restaurant count
 
@@ -131,22 +132,76 @@ def ratio_per_zipcode(db, cuisine, borough):
     # 1. First pipeline: Query the collection to get the biggest five zipcodes of the borough (in which we are going to open the new restaurant)
     pipeline1 = []
 
+    command_1a = { "$match" : {  "borough" : borough_name}}
+    pipeline1.append(command_1a)
+
+    command_1b = { "$group" : { "_id" : "$address.zipcode", "total" : { "$sum" : 1 } } }
+    pipeline1.append(command_1b)
+
+    command_1c = { "$sort" : { "total" : -1 } }
+    pipeline1.append(command_1c)
+
+    command_1d = { "$limit" : 5}
+    pipeline1.append(command_1d)
+
+    biggest_five_zipcodes = db.restaurants.aggregate(pipeline1)
+
+    zipcode4 = ""
+    for z in biggest_five_zipcodes:
+        if z["_id"] == "10305":
+            zipcode4 = z["_id"]
+
 
     # 2. Second pipeline: Query the collection to get how many zipcodes of the borough include restaurants of the kind of cuisine we are looking for
     pipeline2 = []
 
+    command_2a = { "$match" : {  "borough" : borough_name, "address.zipcode" : zipcode4 } }
+    pipeline2.append(command_2a)
+
+    command_2b = { "$group" : { "_id" : "$address.zipcode", "total" : { "$sum" : 1 } } }
+    pipeline2.append(command_2b)
+
+    command_2c = { "$sort" : { "total" : -1 } }
+    pipeline2.append(command_2c)
+
+    command_2d = { "$limit" : 5 }
+    pipeline2.append(command_2d)
+
+    zipcodes_with_cuisine = db.restaurants.aggregate(pipeline2)
+
+    num_rest = 0
+    for zc in zipcodes_with_cuisine:
+        num_rest = zc["total"]
 
     # 3. Combine the results of the two queries, so as to compute the ratio of restaurants (of our kind of cuisine) for each of the 5 biggests zipcodes of the borough
     # Plese note that the documents of first and second query might not fully match. That is, there might be more than 5 zipcodes in the second query. Also, it might be the unlikely case in which, for one of the biggest zipcodes of the borough, there is no restaurant (of the kind of cuisine we are looking for) at all.
+    pipeline3 = []
 
+    command_3a = { "$match" : {  "borough" : borough_name, "cuisine" : cuisine_name, "address.zipcode" : zipcode4 } }
+    pipeline3.append(command_3a)
+
+    command_3b = { "$group" : { "_id" : "$address.zipcode", "total" : { "$sum" : 1 } } }
+    pipeline3.append(command_3b)
+
+    command_3c = { "$sort" : { "total" : -1 } }
+    pipeline3.append(command_3c)
+
+    command_3d = { "$project": { "count":1,"percentage":{"$multiply":[{"$divide":[100, num_rest]},"$total"]}} }
+    pipeline3.append(command_3d)
+
+    zip_combined = db.restaurants.aggregate(pipeline3)
+
+    ratio_zip = 0
+    for zc in zip_combined:
+        ratio_zip = zc["percentage"]
 
     # 4. Extract the name of the cuisine we are looking for (and its percentage of restaurants)
-    name = ""
-    ratio = 100.0
+    zipcode = zipcode4
+    ratio = ratio_zip
 
 
     # 5. Return the selected borough and its ratio
-    return (name, ratio)
+    return (zipcode, ratio)
 
 # ------------------------------------------
 # FUNCTION 4: best_restaurants
@@ -181,9 +236,9 @@ def my_main():
     (borough, ratio_borough) = ratio_per_borough_and_cuisine(db, cuisine)
     print ("2. The borough with smaller ratio of restaurants of this kind of cuisine is", borough, "(with a", ratio_borough, "percentage of restaurants of this kind)")
     #
-    # # 3. Which of the 5 biggest zipcodes of the borough has a smaller ratio of restaurants of the cuisine we are looking for?
-    # (zipcode, ratio_zipcode) = ratio_per_zipcode(db, cuisine, borough)
-    # print ("3. The zipcode of the borough with smaller ratio of restaurants of this kind of cuisine is zipcode =", zipcode, "(with a", ratio_zipcode, "percentage of restaurants of this kind)")
+    # 3. Which of the 5 biggest zipcodes of the borough has a smaller ratio of restaurants of the cuisine we are looking for?
+    (zipcode, ratio_zipcode) = ratio_per_zipcode(db, cuisine, borough)
+    print ("3. The zipcode of the borough with smaller ratio of restaurants of this kind of cuisine is zipcode =", zipcode, "(with a", ratio_zipcode, "percentage of restaurants of this kind)")
     #
     # # 4. Which are the best 3 restaurants (of the kind of cuisine we are looking for) of our zipcode?
     # (best, reviews) = best_restaurants(db, cuisine, borough, zipcode)
