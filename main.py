@@ -54,7 +54,6 @@ def most_popular_cuisine(db):
     total_num_rest = 0
     for r in total_rest:
         total_num_rest = r["count"]
-    print("Total rest:", total_num_rest)
 
     # 3. Extract the name of the cuisine we are looking for (and its percentage of restaurants)
     most_popular = popular_cuisines
@@ -104,6 +103,9 @@ def ratio_per_borough_and_cuisine(db, cuisine):
 
     rest_per_boro_with_cuisine = db.restaurants.aggregate(pipeline2)
 
+    # 3. Combine the results of the two queries, so as to get the ratio of restaurants (of the kind of cuisine we are looking for) per borough
+    # Plese note that the documents of first and second query might not fully match. That is, it might be the unlikely case in which, for one of the boroughs, there is no restaurant (of this kind of cuisine we are looking for) at all.
+
     num_rest_in_boro_with_cuisine = 0
     for b in rest_per_boro_with_cuisine:
         if b["_id"] == "Staten Island":
@@ -113,10 +115,6 @@ def ratio_per_borough_and_cuisine(db, cuisine):
     # print("Borough:", borough_name, "| Count", num_rest_in_boro_with_cuisine)  # Borough: Staten Island | Count 244
 
     percentage = (num_rest_in_boro_with_cuisine * 100) / num_rest_in_boro
-    # print(percentage) # 25.180598555211557
-
-    # 3. Combine the results of the two queries, so as to get the ratio of restaurants (of the kind of cuisine we are looking for) per borough
-    # Plese note that the documents of first and second query might not fully match. That is, it might be the unlikely case in which, for one of the boroughs, there is no restaurant (of this kind of cuisine we are looking for) at all.
 
     # 4. Select the name and ratio of the borough with smaller ratio
     name = borough_name
