@@ -12,6 +12,8 @@
 
 import pymongo
 
+# Global Variables
+cuisine_name = ""
 
 # ------------------------------------------
 # FUNCTION 1: most_popular_cuisine
@@ -35,13 +37,13 @@ def most_popular_cuisine(db):
     # 1.4. Trigger the query to the MongoDB and convert the result to a list of documents
     popular_cuisines = db.restaurants.aggregate(pipeline1)
 
-    cuisine_type = ""
+    global cuisine_name
     cuisine_total = 0
     for c in popular_cuisines:
-        cuisine_type = c["_id"]
+        cuisine_name = c["_id"]
         cuisine_total = c["total"]
 
-    popular_cuisines = cuisine_type
+    popular_cuisines = cuisine_name
 
     # 2. Get the total amount of restaurants
     pipeline2 = []
@@ -60,7 +62,7 @@ def most_popular_cuisine(db):
     # calculate the percentage
     cuisine_ratio = (cuisine_total * 100) / total_num_rest
 
-    total = str(round(cuisine_ratio, 1))  # 24.4 percent
+    total = str(round(cuisine_ratio, 2))  # 24.4 percent
 
     # 4. Return this cuisine name
     return most_popular, total
@@ -71,23 +73,54 @@ def most_popular_cuisine(db):
 def ratio_per_borough_and_cuisine(db, cuisine):
     # 1. First pipeline: Query the collection to get how many restaurants are there per borough
     pipeline1 = []
-    command_1 = {"$group" : { "_id" : "$borough", "count" : { "$sum" : 1 } } }, { "$sort" : { "count" : -1 }}
+    command_1 = { "$group" : { "_id" : "$borough", "count" : { "$sum" : 1 } } }
     pipeline1.append(command_1)
 
+    rest_per_boro = db.restaurants.aggregate(pipeline1)
+
+    num_rest_in_boro = 0
+    borough_name = ""
+    for b in rest_per_boro:
+        # print(b["_id"], b["count"]) # prints each borough and restaurant count
+
+        # we are interested in the borough with the lowest ratio of restaurants, i.e. "Staten Island"
+        if b["_id"] == "Staten Island":
+            borough_name = b["_id"]
+            num_rest_in_boro = b["count"]
+
+    # print("Borough:", borough_name, "| Count", num_rest_in_boro) # Borough: Staten Island | Count 969
 
     # 2. Second pipeline: Query the collection to get how many restaurants (of the kind of cuisine we are looking for) are there per borough
     pipeline2 = []
-    command_2 = { "$project" : { "_id" : 0, "Borough" : "$borough", "Cuisine" : {"$cond" : [ {"$eq" : ["$cuisine", "American " ] }, 1, 0]} } }, \
-                { "$group" : { "_id" : "$Borough", "count" : { "$sum" : "$Cuisine" } } }, { "$sort" : { "count" : -1 } }
-    pipeline2.append(command_2)
 
+    command_2a = { "$match" : { "cuisine" : cuisine_name } }
+    pipeline2.append(command_2a)
+
+    command_2b = { "$project" : { "_id" : 0, "Borough" : "$borough", "Cuisine" : {"$cond" : [ {"$eq" : ["$cuisine", cuisine_name ] }, 1, 0]} } }
+    pipeline2.append(command_2b)
+
+    command_2c = { "$group" : { "_id" : "$Borough", "count" : { "$sum" : "$Cuisine" } } }
+    pipeline2.append(command_2c)
+
+    rest_per_boro_with_cuisine = db.restaurants.aggregate(pipeline2)
+
+    num_rest_in_boro_with_cuisine = 0
+    for b in rest_per_boro_with_cuisine:
+        if b["_id"] == "Staten Island":
+            borough_name = b["_id"]
+            num_rest_in_boro_with_cuisine = b["count"]
+
+    # print("Borough:", borough_name, "| Count", num_rest_in_boro_with_cuisine)  # Borough: Staten Island | Count 244
+
+    percentage = (num_rest_in_boro_with_cuisine * 100) / num_rest_in_boro
+    # print(percentage) # 25.180598555211557
 
     # 3. Combine the results of the two queries, so as to get the ratio of restaurants (of the kind of cuisine we are looking for) per borough
     # Plese note that the documents of first and second query might not fully match. That is, it might be the unlikely case in which, for one of the boroughs, there is no restaurant (of this kind of cuisine we are looking for) at all.
 
     # 4. Select the name and ratio of the borough with smaller ratio
-    name = ""
-    ratio = 100.0
+    name = borough_name
+    ratio = percentage
 
 
     # 5. Return the selected borough and its ratio
@@ -147,8 +180,8 @@ def my_main():
     print("1. The kind of cuisine with more restaurants in the city is", cuisine, "(with a", ratio_cuisine, "percentage of restaurants of the city)")
     #
     # # 2. Which is the borough with smaller ratio of restaurants of this kind of cuisine?
-    # (borough, ratio_borough) = ratio_per_borough_and_cuisine(db, cuisine)
-    # print ("2. The borough with smaller ratio of restaurants of this kind of cuisine is", borough, "(with a", ratio_borough, "percentage of restaurants of this kind)")
+    (borough, ratio_borough) = ratio_per_borough_and_cuisine(db, cuisine)
+    print ("2. The borough with smaller ratio of restaurants of this kind of cuisine is", borough, "(with a", ratio_borough, "percentage of restaurants of this kind)")
     #
     # # 3. Which of the 5 biggest zipcodes of the borough has a smaller ratio of restaurants of the cuisine we are looking for?
     # (zipcode, ratio_zipcode) = ratio_per_zipcode(db, cuisine, borough)
